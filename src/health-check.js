@@ -31,7 +31,7 @@ app.get('/metrics', async (req, res) => {
         const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
 
         // Updated regex to exclude superblock entries
-        const blockMatch = stdout.match(/Committed block index (\d+)/g);
+        const blockMatch = stdout.match(/Committed superblock index (\d+)/g);
         const latestBlock = blockMatch ?
             parseInt(blockMatch[blockMatch.length - 1].replace('Committed superblock index ', '')) :
             0;
