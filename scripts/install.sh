@@ -22,7 +22,7 @@ Description=Redbelly Node Health Check Service
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/node /opt/node-health/health-check.js
+ExecStart=/usr/bin/node /opt/redbelly-monitor/src/health-check.js
 Restart=always
 User=root
 Environment=NODE_ENV=production
