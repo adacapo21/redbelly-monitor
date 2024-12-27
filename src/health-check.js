@@ -30,10 +30,10 @@ app.get('/metrics', async (req, res) => {
     try {
         const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
 
-        // Updated regex to exclude superblock entries
-        const blockMatch = stdout.match(/Committed superblock index (\d+)/g);
+        // Look for 'Done processing block'
+        const blockMatch = stdout.match(/Done processing block (\d+)/g);
         const latestBlock = blockMatch ?
-            parseInt(blockMatch[blockMatch.length - 1].replace('Committed superblock index ', '')) :
+            parseInt(blockMatch[blockMatch.length - 1].replace('Done processing block ', '')) :
             0;
 
         latestBlockGauge.set(latestBlock);
@@ -63,9 +63,9 @@ app.get('/health/detailed', async (req, res) => {
         ]);
 
         // Extract latest block number from logs
-        const blockMatch = lastLogs.stdout.match(/block (\d+)/g);
+        const blockMatch = lastLogs.stdout.match(/Done processing block (\d+)/g);
         const latestBlock = blockMatch ?
-            parseInt(blockMatch[blockMatch.length - 1].replace('block ', '')) :
+            parseInt(blockMatch[blockMatch.length - 1].replace('Done processing block ', '')) :
             'Not found';
 
         res.json({
@@ -98,10 +98,10 @@ app.get('/health/block', async (req, res) => {
     try {
         const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
 
-        // Updated regex to exclude superblock entries
-        const blockMatch = stdout.match(/Committed superblock index (\d+)/g);
+        // Look for 'Done processing block'
+        const blockMatch = stdout.match(/Done processing block (\d+)/g);
         const latestBlock = blockMatch ?
-            parseInt(blockMatch[blockMatch.length - 1].replace('Committed superblock index ', '')) :
+            parseInt(blockMatch[blockMatch.length - 1].replace('Done processing block ', '')) :
             'Not found';
 
         res.json({ latestBlock });
@@ -109,6 +109,7 @@ app.get('/health/block', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 
 // Get service status
 // Get service status
@@ -121,10 +122,10 @@ app.get('/health/service', async (req, res) => {
         ]);
 
         // Extract latest superblock number from logs
-        const blockMatch = latestLogs.stdout.match(/Committed superblock index (\d+)/g);
-        const latestBlock = blockMatch
-            ? parseInt(blockMatch[blockMatch.length - 1].replace('Committed superblock index ', ''))
-            : 'Not found';
+        const blockMatch = latestLogs.stdout.match(/Done processing block (\d+)/g);
+        const latestBlock = blockMatch ?
+            parseInt(blockMatch[blockMatch.length - 1].replace('Done processing block ', '')) :
+            'Not found';
 
         res.json({
             status: 'ok',
