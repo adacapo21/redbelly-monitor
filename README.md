@@ -185,3 +185,35 @@ sudo systemctl status node-health.service
 
 - **Prometheus:** http://<server-ip>:9092/metrics
 
+---
+
+## 🌐 9. Local Health Check API Endpoints
+You can access these health endpoints locally on your server:
+
+### Service Status:
+```bash
+curl http://localhost:9092/health/service
+```
+Returns the status of the Redbelly Node service, including process ID and systemd status.
+
+### Latest Block Number:
+```bash
+curl http://localhost:9092/health/block
+```
+
+Returns the latest block number synced by the Redbelly Node.
+
+### Node Logs:
+```bash
+curl http://localhost:9092/health/logs
+```
+
+Returns the last 100 lines of the Redbelly Node logs.
+
+---
+
+## 🤝 10. Contributing
+Feel free to open an issue or submit a pull request to improve this project.
+
+## 📜 11. License
+This project is licensed under the MIT License. See the LICENSE file for details.
