@@ -33,7 +33,7 @@ app.get('/metrics', async (req, res) => {
         // Updated regex to exclude superblock entries
         const blockMatch = stdout.match(/Committed block index (\d+)/g);
         const latestBlock = blockMatch ?
-            parseInt(blockMatch[blockMatch.length - 1].replace('Committed block index ', '')) :
+            parseInt(blockMatch[blockMatch.length - 1].replace('Committed superblock index ', '')) :
             0;
 
         latestBlockGauge.set(latestBlock);
