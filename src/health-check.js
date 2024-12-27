@@ -132,8 +132,8 @@ app.get('/health/service', async (req, res) => {
                 name: 'redbelly.service',
                 status: serviceStatus.stdout.trim(),
                 pid: processId.stdout.trim(),
-                latestBlock: latestBlock
-            }
+            },
+            latestBlock: latestBlock
         });
     } catch (error) {
         res.status(500).json({
