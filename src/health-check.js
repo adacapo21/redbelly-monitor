@@ -111,18 +111,19 @@ app.get('/health/block', async (req, res) => {
 });
 
 // Get service status
+// Get service status
 app.get('/health/service', async (req, res) => {
     try {
         const [serviceStatus, processId, latestLogs] = await Promise.all([
             execAsync('systemctl is-active redbelly.service'),
             execAsync('pgrep rbbc'),
-            execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log')
+            execAsync('tail -n 2000 /var/log/redbelly/rbn_logs/rbbc_logs.log')
         ]);
 
-        // Extract latest block number from logs
-        const blockMatch = latestLogs.stdout.match(/Committed block index (\d+)/g);
+        // Extract latest superblock number from logs
+        const blockMatch = latestLogs.stdout.match(/Committed superblock index (\d+)/g);
         const latestBlock = blockMatch
-            ? parseInt(blockMatch[blockMatch.length - 1].replace('Committed block index ', ''))
+            ? parseInt(blockMatch[blockMatch.length - 1].replace('Committed superblock index ', ''))
             : 'Not found';
 
         res.json({
