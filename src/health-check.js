@@ -1,5 +1,7 @@
 const express = require('express');
 const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 const app = express();
 const port = 9092;
 
@@ -11,81 +13,115 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    next();
-});
+// Get detailed node status
+app.get('/health/detailed', async (req, res) => {
+    try {
+        // Run all checks in parallel
+        const [
+            serviceStatus,
+            processId,
+            lastLogs,
+            systemctlStatus
+        ] = await Promise.all([
+            execAsync('systemctl is-active redbelly.service'),
+            execAsync('pgrep rbbc'),
+            execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log'),
+            execAsync('systemctl status redbelly.service')
+        ]);
 
-app.get('/health/service', (req, res) => {
-    exec('systemctl is-active redbelly.service', (error, stdout, stderr) => {
-        if (error && !stdout) {
-            res.status(500).json({
-                status: 'error',
-                message: 'Failed to check service health',
-                timestamp: new Date().toISOString(),
-                error: error.message
-            });
-        } else {
-            const serviceStatus = stdout.trim();
-            res.json({
-                status: serviceStatus === 'active' ? 'ok' : 'error',
-                timestamp: new Date().toISOString(),
+        // Extract latest block number from logs
+        const blockMatch = lastLogs.stdout.match(/block (\d+)/g);
+        const latestBlock = blockMatch ?
+            parseInt(blockMatch[blockMatch.length - 1].replace('block ', '')) :
+            'Not found';
+
+        res.json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            node: {
                 service: {
                     name: 'redbelly.service',
-                    status: serviceStatus
-                }
-            });
-        }
-    });
-});
-
-app.get('/health/block', (req, res) => {
-    const extractBlockCommands = [
-        // 1. Look for "Done processing block" lines first (most authoritative)
-        `grep -E "Done processing block [0-9]+" /var/log/redbelly/rbn_logs/rbbc_logs.log | tail -n 100 | grep -oP "(?<=Done processing block )[0-9]+" | tail -n 1`,
-        
-        // 2. Look for "Inserted new chain segment" lines
-        `grep -E "Inserted new chain segment.*number.* [0-9]+" /var/log/redbelly/rbn_logs/rbbc_logs.log | tail -n 100 | grep -oP '(?<="number": ")([0-9]+)(?=")' | tail -n 1`,
-        
-        // 3. Look for block import logs
-        `grep -E "Inserted new block.*number.* [0-9]+" /var/log/redbelly/rbn_logs/rbbc_logs.log | tail -n 100 | grep -oP '(?<="number": ")([0-9]+)(?=")' | tail -n 1`,
-        
-        // 4. Look for block processor logs
-        `grep -E "blockchain/blocks_processor.go.*block [0-9]+" /var/log/redbelly/rbn_logs/rbbc_logs.log | tail -n 100 | grep -oP "(?<=block )[0-9]+" | tail -n 1`,
-        
-        // 5. Fallback to downloader client logs (least preferred)
-        `grep -E "returned block hash.*for block [0-9]+" /var/log/redbelly/rbn_logs/rbbc_logs.log | tail -n 100 | grep -oP "(?<=for block )[0-9]+" | tail -n 1`
-    ];
-
-    const tryNextCommand = (commands) => {
-        if (commands.length === 0) {
-            res.status(500).json({
-                error: 'No valid block number found in logs'
-            });
-            return;
-        }
-
-        const currentCommand = commands[0];
-        exec(currentCommand, (error, stdout, stderr) => {
-            const blockNumber = stdout ? parseInt(stdout.trim()) : null;
-            
-            if (blockNumber && !isNaN(blockNumber)) {
-                res.json(blockNumber);
-            } else {
-                tryNextCommand(commands.slice(1));
+                    status: serviceStatus.stdout.trim(),
+                    pid: processId.stdout.trim()
+                },
+                metrics: {
+                    latestBlock: latestBlock,
+                    lastLogTimestamp: lastLogs.stdout.split('\n').slice(-2)[0].split('T')[0]
+                },
+                systemStatus: systemctlStatus.stdout.trim()
             }
         });
-    };
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            timestamp: new Date().toISOString(),
+            error: error.message
+        });
+    }
+});
 
-    tryNextCommand(extractBlockCommands);
+// Get just the latest block
+app.get('/health/block', async (req, res) => {
+    try {
+        const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
+        const blockMatch = stdout.match(/block (\d+)/g);
+        const latestBlock = blockMatch ?
+            parseInt(blockMatch[blockMatch.length - 1].replace('block ', '')) :
+            'Not found';
+
+        res.json({ latestBlock });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get service status
+app.get('/health/service', async (req, res) => {
+    try {
+        const [serviceStatus, processId] = await Promise.all([
+            execAsync('systemctl is-active redbelly.service'),
+            execAsync('pgrep rbbc')
+        ]);
+
+        res.json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            service: {
+                name: 'redbelly.service',
+                status: serviceStatus.stdout.trim(),
+                pid: processId.stdout.trim()
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message
+        });
+    }
+});
+
+// Get logs
+app.get('/health/logs', async (req, res) => {
+    try {
+        const lines = req.query.lines || 1000;
+        const { stdout } = await execAsync(`tail -n ${lines} /var/log/redbelly/rbn_logs/rbbc_logs.log`);
+        res.json({
+            timestamp: new Date().toISOString(),
+            logs: stdout.split('\n')
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.get('/', (req, res) => {
     res.json({
         message: 'Redbelly Node Health Check API',
         endpoints: {
-            serviceHealth: '/health/service',
-            latestBlock: '/health/block'
+            detailed: '/health/detailed',
+            service: '/health/service',
+            block: '/health/block',
+            logs: '/health/logs?lines=1000'
         }
     });
 });
