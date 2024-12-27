@@ -1,6 +1,8 @@
 const express = require('express');
 const { exec } = require('child_process');
 const { promisify } = require('util');
+const client = require('prom-client');
+
 const execAsync = promisify(exec);
 const app = express();
 const port = 9092;
@@ -11,6 +13,34 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     next();
+});
+
+// Prometheus Metrics
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+// Custom Metrics
+const latestBlockGauge = new client.Gauge({
+    name: 'redbelly_latest_block',
+    help: 'Latest block number of Redbelly node'
+});
+register.registerMetric(latestBlockGauge);
+
+app.get('/metrics', async (req, res) => {
+    try {
+        const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
+        const blockMatch = stdout.match(/block (\d+)/g);
+        const latestBlock = blockMatch ?
+            parseInt(blockMatch[blockMatch.length - 1].replace('block ', '')) :
+            0;
+
+        latestBlockGauge.set(latestBlock);
+
+        res.set('Content-Type', register.contentType);
+        res.end(await register.metrics());
+    } catch (error) {
+        res.status(500).end(error.message);
+    }
 });
 
 // Get detailed node status
