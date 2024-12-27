@@ -94,9 +94,11 @@ app.get('/health/detailed', async (req, res) => {
 app.get('/health/block', async (req, res) => {
     try {
         const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
-        const blockMatch = stdout.match(/block (\d+)/g);
+
+        // Updated regex to exclude superblock entries
+        const blockMatch = stdout.match(/Committed block index (\d+)/g);
         const latestBlock = blockMatch ?
-            parseInt(blockMatch[blockMatch.length - 1].replace('block ', '')) :
+            parseInt(blockMatch[blockMatch.length - 1].replace('Committed block index ', '')) :
             'Not found';
 
         res.json({ latestBlock });
