@@ -29,9 +29,11 @@ register.registerMetric(latestBlockGauge);
 app.get('/metrics', async (req, res) => {
     try {
         const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
-        const blockMatch = stdout.match(/block (\d+)/g);
+
+        // Updated regex to exclude superblock entries
+        const blockMatch = stdout.match(/Committed block index (\d+)/g);
         const latestBlock = blockMatch ?
-            parseInt(blockMatch[blockMatch.length - 1].replace('block ', '')) :
+            parseInt(blockMatch[blockMatch.length - 1].replace('Committed block index ', '')) :
             0;
 
         latestBlockGauge.set(latestBlock);
@@ -42,6 +44,7 @@ app.get('/metrics', async (req, res) => {
         res.status(500).end(error.message);
     }
 });
+
 
 // Get detailed node status
 app.get('/health/detailed', async (req, res) => {
