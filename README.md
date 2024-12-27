@@ -133,8 +133,8 @@ sudo systemctl status prometheus
 
 ## 🎉 **6. Access Monitoring Dashboard**
 
-- **Prometheus UI:** http://<server-ip>:9090
-- **Grafana Dashboard:** http://<server-ip>:3000
+- **Prometheus UI:** ```http://<server-ip>:9090```
+- **Grafana Dashboard:** ```http://<server-ip>:3000```
 
 ---
 
