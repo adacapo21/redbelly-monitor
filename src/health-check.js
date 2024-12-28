@@ -28,7 +28,7 @@ register.registerMetric(latestBlockGauge);
 
 app.get('/metrics', async (req, res) => {
     try {
-        const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
+        const { stdout } = await execAsync('tail -n 2000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
 
         // Look for 'Done processing block'
         const blockMatch = stdout.match(/Done processing block (\d+)/g);
@@ -96,7 +96,7 @@ app.get('/health/detailed', async (req, res) => {
 // Get just the latest block
 app.get('/health/block', async (req, res) => {
     try {
-        const { stdout } = await execAsync('tail -n 1000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
+        const { stdout } = await execAsync('tail -n 2000 /var/log/redbelly/rbn_logs/rbbc_logs.log');
 
         // Look for 'Done processing block'
         const blockMatch = stdout.match(/Done processing block (\d+)/g);
@@ -168,7 +168,7 @@ app.get('/', (req, res) => {
             detailed: '/health/detailed',
             service: '/health/service',
             block: '/health/block',
-            logs: '/health/logs?lines=1000'
+            logs: '/health/logs?lines=2000'
         }
     });
 });
